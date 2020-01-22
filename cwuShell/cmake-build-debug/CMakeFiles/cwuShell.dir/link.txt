@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/cwuShell.dir/main.cpp.o CMakeFiles/cwuShell.dir/Shell.cpp.o  -o cwuShell 
