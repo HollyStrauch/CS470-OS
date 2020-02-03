@@ -50,14 +50,58 @@ vector<int> readIn(string file, string sep){
 }
 
 
+
 int main() {
-
+    string sep = ",,";
+    int size = 0, shmID;
     string file = "/home/holly/dev/CS470/Sorting/test.txt";
-    SortFile s = SortFile(",,");
+    vector<int> temp = readIn(file, ",,");
+
+    size = temp.size();
+
+    key_t key = IPC_PRIVATE;
+    int *lst;
+
+    size_t SHM_SIZE = sizeof(int)*size;
+
+    // Create the segment.
+    if ((shmID = shmget(key, SHM_SIZE, IPC_CREAT | 0666)) < 0)
+    {
+        cout << "Error: shmget ... Failed to create shared memory segment" << endl;
+        exit(1);
+    }
+
+    // Now we attach the segment to our data space.
+    if ((lst = (int *)shmat(shmID, NULL, 0)) == (int *) -1)
+    {
+        cout << "Error: shmat ... Failed to attach memory segment" << endl;
+        exit(1);
+    }
+
+    makeLst(&temp, lst);
+    for(int i = 0; i < size; i++){
+        cout << lst[i] << " ";
+    }
+    cout << "\n" << size << endl;
+
+    MergeSort* mg = new MergeSort();
 
 
-    s.readIn(file);
-    s.printVect();
+    for(int i = 0; i < size; i++){
+        cout << lst[i] << " ";
+    }
+    cout << "\n" << size << endl;
+
+
+    mg->mergeSort(lst, 0, size - 1);
+
+    for(int i = 0; i < size; i++){
+        cout << lst[i] << " ";
+    }
+    cout << endl;
+
+
 
     return 0;
 }
+
