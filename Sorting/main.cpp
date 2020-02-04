@@ -49,19 +49,10 @@ vector<int> readIn(string file, string sep){
     return temp;
 }
 
-
-
-int main() {
-    string sep = ",,";
-    int size = 0, shmID;
-    string file = "/home/holly/dev/CS470/Sorting/test.txt";
-    vector<int> temp = readIn(file, ",,");
-
-    size = temp.size();
-
+int* createdSHM(int size){
+    int shmID;
+    int* lst;
     key_t key = IPC_PRIVATE;
-    int *lst;
-
     size_t SHM_SIZE = sizeof(int)*size;
 
     // Create the segment.
@@ -77,30 +68,28 @@ int main() {
         cout << "Error: shmat ... Failed to attach memory segment" << endl;
         exit(1);
     }
+    return lst;
+}
+
+
+
+int main() {
+    string sep = ",,";
+    int size = 0;
+    string file = "/home/holly/dev/CS470/Sorting/test.txt";
+    vector<int> temp = readIn(file, ",,");
+    size = temp.size();
+
+    int* lst = createdSHM(size);
+
 
     makeLst(&temp, lst);
-    for(int i = 0; i < size; i++){
-        cout << lst[i] << " ";
-    }
-    cout << "\n" << size << endl;
-
-    MergeSort* mg = new MergeSort();
-
-
-    for(int i = 0; i < size; i++){
-        cout << lst[i] << " ";
-    }
-    cout << "\n" << size << endl;
-
-
-    mg->mergeSort(lst, 0, size - 1);
+    MergeSort::mergeSort(lst, 0, size - 1);
 
     for(int i = 0; i < size; i++){
         cout << lst[i] << " ";
     }
     cout << endl;
-
-
 
     return 0;
 }

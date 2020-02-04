@@ -9,25 +9,6 @@
 
 ///Input: single line text file
 
-MergeSort::MergeSort(){
-}
-
-/*
-void MergeSort::mergeSort(int* lst, int l, int h){
-
-    if (h - l < 1){
-        return;
-    }
-
-    mergeSort(lst, l, (l + h) / 2);
-    mergeSort(lst, (l + h) / 2 + 1, h);
-
-
-    // Merge the sorted subarrays
-    merge(lst, l, h);
-
-}
-*/
 
 void MergeSort::mergeSort(int* lst, int l, int h){
     pid_t c1_pid, c2_pid;
@@ -53,12 +34,12 @@ void MergeSort::mergeSort(int* lst, int l, int h){
 
         } else if (c2_pid < 0){
             perror("fork failed");
-            _exit(1);
+            exit(1);
         }
 
     } else {
         perror("fork failed");
-        _exit(1);
+        exit(1);
     }
 
     // Wait for child processes to finish

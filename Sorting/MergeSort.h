@@ -15,9 +15,8 @@ using namespace std;
 class MergeSort {
 
 public:
-    MergeSort();
-    void mergeSort(int* lst, int l, int h);
-    void merge(int* lst, int l, int h);
+    static void mergeSort(int* lst, int l, int h);
+    static void merge(int* lst, int l, int h);
 };
 
 
