@@ -1,3 +1,17 @@
+/**
+ * Author: Holly Strauch
+ * 2/5/2020
+ * CS 470 Lab 2
+ * File: main.cpp
+ *
+ * Program:  Integers are read in from a file with a specified string separator between each number.  Filename and separator
+ * must be given as command line arguments.  The program then sorts the numbers using mergesort with forking processes.
+ * PID statements and the status of the array of numbers is given as printouts to the console to track the progress of
+ * the algorithm.
+ */
+
+
+
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -5,8 +19,13 @@
 #include "MergeSort.h"
 
 
-
-int* makeLst(vector<int>* temp, int* lst) {
+/**
+ * \brief Creates an array from a vector
+ * @param temp The vector with integer values
+ * @param lst The integer array to transfer values into
+ * @return
+ */
+void makeLst(vector<int>* temp, int* lst) {
     int size = temp->size();
 
     for (int i = 0; i < size; i++) {
@@ -15,7 +34,12 @@ int* makeLst(vector<int>* temp, int* lst) {
 }
 
 
-//TODO fix final reading misprint
+/**
+ * \brief Reads in values from a file and parses out the integers from the separator string
+ * @param file The filename
+ * @param sep The separator between integers used in the file
+ * @return A vector of all the integers in the file
+ */
 vector<int> readIn(string file, string sep){
     string hold, token;
     size_t pos = 0;
@@ -48,6 +72,11 @@ vector<int> readIn(string file, string sep){
     return temp;
 }
 
+/**
+ * \creates shared memory segment and assigns it to an integer pointer
+ * @param size The size of the shared memory segment to be created
+ * @return integer point lst to the shared memory
+ */
 int* createdSHM(int size){
     int shmID;
     int* lst;
