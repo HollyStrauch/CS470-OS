@@ -54,41 +54,48 @@ int* createdSHM(int size){
     key_t key = IPC_PRIVATE;
     size_t SHM_SIZE = sizeof(int)*size;
 
-    // Create the segment.
     if ((shmID = shmget(key, SHM_SIZE, IPC_CREAT | 0666)) < 0)
     {
         cout << "Error: shmget ... Failed to create shared memory segment" << endl;
         exit(1);
     }
 
-    // Now we attach the segment to our data space.
     if ((lst = (int *)shmat(shmID, NULL, 0)) == (int *) -1)
     {
         cout << "Error: shmat ... Failed to attach memory segment" << endl;
         exit(1);
     }
+
     return lst;
 }
 
-
-
-int main() {
-    string sep = ",,";
-    int size = 0;
-    string file = "/home/holly/dev/CS470/Sorting/test.txt";
-    vector<int> temp = readIn(file, ",,");
-    size = temp.size();
-
-    int* lst = createdSHM(size);
-
-
-    makeLst(&temp, lst);
-    MergeSort::mergeSort(lst, 0, size - 1);
-
+void printLst(int* lst, int size){
+    cout << "Sorted List" << endl;
+    
     for(int i = 0; i < size; i++){
         cout << lst[i] << " ";
     }
     cout << endl;
+}
+
+//"/home/holly/dev/CS470/Sorting/test.txt"
+int main(int argc, char **argv) {
+    int size = 0;
+    string file = argv[1];
+    string sep = argv[2];
+    vector<int> temp = readIn(file, sep);
+    size = temp.size();
+
+    if (size == 0){
+        cout << "Empty File.  Exiting Program." << endl;
+        return 0;
+    }
+
+    int* lst = createdSHM(size);
+    makeLst(&temp, lst);
+    MergeSort::mergeSort(lst, 0, size - 1);
+
+    printLst(lst, size);
 
     return 0;
 }
