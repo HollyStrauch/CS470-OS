@@ -13,7 +13,7 @@ using namespace std;
 
 
 class MergeSort {
-
+    static void printLst(int* lst, int l, int h);
 public:
     static void mergeSort(int* lst, int l, int h);
     static void merge(int* lst, int l, int h);

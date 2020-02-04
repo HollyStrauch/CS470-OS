@@ -70,8 +70,7 @@ int* createdSHM(int size){
 }
 
 void printLst(int* lst, int size){
-    cout << "Sorted List" << endl;
-    
+
     for(int i = 0; i < size; i++){
         cout << lst[i] << " ";
     }
@@ -95,6 +94,7 @@ int main(int argc, char **argv) {
     makeLst(&temp, lst);
     MergeSort::mergeSort(lst, 0, size - 1);
 
+    cout << "FINAL LIST: " << endl;
     printLst(lst, size);
 
     return 0;

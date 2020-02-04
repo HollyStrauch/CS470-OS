@@ -14,6 +14,9 @@ void MergeSort::mergeSort(int* lst, int l, int h){
     pid_t c1_pid, c2_pid;
     int status;
 
+    cout << "Current PID: " << getpid() << "; Parent PID: " << getppid() << " : ";
+    printLst(lst, l, h);
+
     if (h - l < 1){
         return;
     }
@@ -21,7 +24,8 @@ void MergeSort::mergeSort(int* lst, int l, int h){
 
     if (c1_pid == 0) {
         // CHILD
-        mergeSort(lst, l, (l + h) / 2) ;
+
+        mergeSort(lst, l, (l + h) / 2);
         exit(0);
 
     } else if (c1_pid > 0) {
@@ -29,6 +33,7 @@ void MergeSort::mergeSort(int* lst, int l, int h){
         c2_pid = fork();
 
         if (c2_pid == 0) {
+
             mergeSort(lst, (l + h) / 2 + 1, h);
             exit(0);
 
@@ -48,6 +53,18 @@ void MergeSort::mergeSort(int* lst, int l, int h){
 
     // Merge the sorted subarrays
     merge(lst, l, h);
+    cout << "After merging branches of " << getpid() << ": ";
+    printLst(lst, l, h);
+
+
+}
+
+void MergeSort::printLst(int* lst, int l, int h){
+
+    for(int i = l; i <= h; i++){
+        cout << lst[i] << " ";
+    }
+    cout << endl;
 
 }
 
