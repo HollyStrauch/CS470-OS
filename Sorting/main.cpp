@@ -24,9 +24,8 @@ vector<int> readIn(string file, string sep){
     vector <int> temp;
 
     ifstream in (file);
-
     getline(in, hold);
-    while(end){
+    while(end && hold != ""){
 
         if((pos = hold.find(sep)) == string::npos){
             end = false;
