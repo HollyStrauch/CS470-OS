@@ -106,9 +106,17 @@ void printLst(int* lst, int size){
     cout << endl;
 }
 
-//"/home/holly/dev/CS470/Sorting/test.txt"
+/**
+    MAIN
+ */
 int main(int argc, char **argv) {
     int size = 0;
+
+    if (argc < 3) {
+        cout << "Missing Command Line Arguments" << endl;
+        return 0;
+    }
+
     string file = argv[1];
     string sep = argv[2];
     vector<int> temp = readIn(file, sep);
