@@ -3,6 +3,9 @@
 #include <time.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <string.h>
 #include "MT/mt19937ar.h"
 
 #define FILENAME "test.txt"
@@ -159,6 +162,13 @@ void *setRow(void * arg)
 
 int main (int argc, char** argv) {
     pid_t pid;
+    struct flock lock;
+    int fd;
+
+    fd = open (FILENAME, O_WRONLY);
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    fcntl(fd, F_SETLKW, &lock);
 
     srand(time(NULL));
 
@@ -168,25 +178,35 @@ int main (int argc, char** argv) {
     puts("Enter the number of threads:");
     int threads = getInput();
 
-
-    sleep(2);
     pthread_t threads1[threads];
 
     createFile();
     printMatrix();
 
-    while (!checkAll()) {
+    while (1) {
         pid = fork();
 
         if (pid == 0){
             int status = checkAll();
             if (status){
-                //lock
+                printf("Ending condition met, locking file\n");
+                fcntl (fd, F_SETLKW, &lock);
             }
+
             return status;
+
         }else if (pid < 0){
             printf("Error forking process");
+            return 1;
         }else {
+
+            int status = 0;
+            wait(&status);
+            status = status>>8;
+
+            if (status){
+                break;
+            }
 
             for (int i = 0; i < threads; i++) {
                 pthread_create(&threads1[i], NULL, setRow, (void *) i);
@@ -197,4 +217,6 @@ int main (int argc, char** argv) {
             }
         }
     }
+    close(fd);
+    return 0;
 }
