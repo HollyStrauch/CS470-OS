@@ -2,17 +2,37 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "MT/mt19937ar.h"
 
 #define FILENAME "test.txt"
 
 int MATRIX = 0;
+pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t pmut = PTHREAD_MUTEX_INITIALIZER;
 
-void createFile(int matrixSize){
+void printMatrix(){
+    unsigned char c;
+    FILE *fp;
+    fp = fopen (FILENAME, "rb");
+
+    for(int i = 0; i < MATRIX; i++){
+        for(int j = 0; j < MATRIX; j++){
+            fseek( fp, i*MATRIX + j, SEEK_SET );
+            c = fgetc(fp);
+            printf("%c ", c);
+        }
+        printf("\n");
+    }
+    fflush(stdout);
+    fclose(fp);
+}
+
+void createFile(){
     FILE *fp;
     fp = fopen (FILENAME, "wb");
 
-    for(int i = 0; i < matrixSize*matrixSize; i++){
+    for(int i = 0; i < MATRIX*MATRIX; i++){
         fputc((rand() % 2) + 48, fp);
     }
 
@@ -22,11 +42,11 @@ void createFile(int matrixSize){
 
 int getInput(){
     int input = 0;
-    char buf[3];
+    char buf[100];
 
     while( input <= 0) {
         printf("Please enter an integer value:\n");
-        fgets(buf, 2, stdin);
+        fgets(buf, 100, stdin);
         input = atoi(buf);
     }
 
@@ -46,25 +66,30 @@ int checkAll(){
         fseek( fp, i, SEEK_SET );
         c1 = fgetc(fp);
         if (c0 != c1){
+            fclose(fp);
             return 0;
         }
     }
 
+    fclose(fp);
     return 1;
 
 }
 
 int findVal(int loc){
     FILE *fp;
-    fp = fopen (FILENAME, "r+b");
+    fp = fopen (FILENAME, "rb");
     int c0 = 0, c1 = 0;
 
+    int row = loc / MATRIX;
+    int col = loc % MATRIX;
+
     for(int i = -1; i <= 1; i++){
-        for(int j = 1; j <= 1; j ++){
+        for(int j = -1; j <= 1; j ++){
             if (i == 0 && j == 0) continue;
 
-            int nRow = loc + i;
-            int nCol = loc + j;
+            int nRow = row + i;
+            int nCol = col + j;
 
             if (nRow < 0 || nRow > MATRIX - 1 || nCol < 0 || nCol > MATRIX - 1) continue;
 
@@ -72,6 +97,7 @@ int findVal(int loc){
             fseek( fp, offset, SEEK_SET );
 
             unsigned char c = fgetc(fp);
+
             if(c == '0'){
                 c0++;
             }else if(c == '1'){
@@ -81,10 +107,12 @@ int findVal(int loc){
         }
     }
 
-    if (c0 > c1){
-        return 50;
+
+    fclose(fp);
+    if (c0 >= c1){
+        return 48;
     }
-    return 51;
+    return 49;
 }
 
 
@@ -92,8 +120,6 @@ int findVal(int loc){
 void *setRow(void * arg)
 {
     int r = rand() % MATRIX;
-    ///set back to r
-    unsigned char a = 3 + 48;
     int ThreadID = (int)arg;
     printf("Thread [%d] assigned row & column %d\n",ThreadID, r);
     fflush(stdout);
@@ -103,60 +129,72 @@ void *setRow(void * arg)
     //row
     for(int i = r * MATRIX; i < r * MATRIX + MATRIX; i++)
     {
+        pthread_mutex_lock(&mut);
         int new = findVal(i);
         fseek( fp, i, SEEK_SET );
         fputc((unsigned char) new, fp);
+        pthread_mutex_unlock(&mut);
     }
 
     //column
     for(int i = 0; i < MATRIX; i++)
     {
-        int new = findVal(i);
-        fseek( fp, i, SEEK_SET );
+        pthread_mutex_lock(&mut);
+        int new = findVal(i * MATRIX + r);
+        fseek( fp, i * MATRIX + r, SEEK_SET );
         fputc((unsigned char) new, fp);
+        pthread_mutex_unlock(&mut);
     }
-
-    printf("Thread [%d] before finishing\n",ThreadID);
-    fflush(stdout);
-
     fclose(fp);
+
+    pthread_mutex_lock(&pmut);
+    printf("Thread [%d] before finishing\n",ThreadID);
+    printMatrix();
+    pthread_mutex_unlock(&pmut);
+
+
     pthread_exit(NULL);
 }
 
 
 int main (int argc, char** argv) {
-    srand (time(NULL));
-    int nRet1;
+    pid_t pid;
+
+    srand(time(NULL));
 
     puts("Enter the size of the matrix:");
     MATRIX = getInput();
+
     puts("Enter the number of threads:");
     int threads = getInput();
 
+
+    sleep(2);
     pthread_t threads1[threads];
 
-    createFile(MATRIX);
+    createFile();
+    printMatrix();
 
-   // while (!checkAll()) {
-        for (int i = 0; i < threads; i++) {
-            nRet1 = pthread_create(&threads1[i], NULL, setRow, (void *) i);
+    while (!checkAll()) {
+        pid = fork();
+
+        if (pid == 0){
+            int status = checkAll();
+            if (status){
+                //lock
+            }
+            return status;
+        }else if (pid < 0){
+            printf("Error forking process");
+        }else {
+
+            for (int i = 0; i < threads; i++) {
+                pthread_create(&threads1[i], NULL, setRow, (void *) i);
+            }
+
+            for (int i = 0; i < threads; i++) {
+                pthread_join(threads1[i], NULL);
+            }
         }
-
-        for (int i = 0; i < threads; i++) {
-            pthread_join(threads1[i], NULL);
-        }
- //   }
-/*
-    unsigned char c;
-    fseek( fp, 0, SEEK_SET );
-    c = fgetc(fp);
-    unsigned char a = '4';
-    fputc(a, fp);
-
-    fseek( fp, 1, SEEK_SET );
-    c = fgetc(fp);
-    a = '5';
-    fputc(a, fp);
-    printf("%c", c);
-*/
+    }
 }
