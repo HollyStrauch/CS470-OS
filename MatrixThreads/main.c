@@ -1,3 +1,17 @@
+/**
+ * Author: Holly Strauch
+ * 2/18/2020
+ * CS 470 Lab 3
+ * File: main.c
+ *
+ * Description:  Code creates a binary file with 0s and 1s representing a square matrix.
+ * Threading is used to randomly select then change an entry of the file to whichever
+ * value around it occurs the most often.  The process stops when the entire matrix is
+ * 1's or 0's
+ *
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -8,12 +22,16 @@
 #include <string.h>
 #include "MT/mt19937ar.h"
 
-#define FILENAME "test.txt"
+#define FILENAME "matrix.bin"
 
+//Global
 int MATRIX = 0;
+int END = 1;
 pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t pmut = PTHREAD_MUTEX_INITIALIZER;
 
+/**
+ * Reads values from the file and prints them off in square matrix format
+ */
 void printMatrix(){
     unsigned char c;
     FILE *fp;
@@ -27,10 +45,14 @@ void printMatrix(){
         }
         printf("\n");
     }
+    printf("\n");
     fflush(stdout);
     fclose(fp);
 }
 
+/**
+ * Creates a file and fills it randomly with 0s and 1s
+ */
 void createFile(){
     FILE *fp;
     fp = fopen (FILENAME, "wb");
@@ -42,7 +64,10 @@ void createFile(){
     fclose(fp);
 }
 
-
+/**
+ * Gets integer input from the user
+ * @return returns valid integer input
+ */
 int getInput(){
     int input = 0;
     char buf[100];
@@ -56,36 +81,17 @@ int getInput(){
     return input;
 }
 
-int checkAll(){
-    unsigned char c0, c1;
 
-    FILE *fp;
-    fp = fopen (FILENAME, "r+b");
-
-    fseek( fp, 0, SEEK_SET );
-    c0 = fgetc(fp);
-
-    for (int i = 0; i < MATRIX * MATRIX; i++){
-        fseek( fp, i, SEEK_SET );
-        c1 = fgetc(fp);
-        if (c0 != c1){
-            fclose(fp);
-            return 0;
-        }
-    }
-
-    fclose(fp);
-    return 1;
-
-}
-
-int findVal(int loc){
+/**
+ * Looks at all neighbors of a specific location and finds if there are more 1s or 0s
+ * @param row The row of the specific location
+ * @param col the column of the specific location
+ * @return the value that occurs most, tie breaker goes to 0
+ */
+int findVal(int row, int col){
     FILE *fp;
     fp = fopen (FILENAME, "rb");
     int c0 = 0, c1 = 0;
-
-    int row = loc / MATRIX;
-    int col = loc % MATRIX;
 
     for(int i = -1; i <= 1; i++){
         for(int j = -1; j <= 1; j ++){
@@ -118,59 +124,89 @@ int findVal(int loc){
     return 49;
 }
 
-
-// thread function
-void *setRow(void * arg)
-{
-    int r = rand() % MATRIX;
-    int ThreadID = (int)arg;
-    printf("Thread [%d] assigned row & column %d\n",ThreadID, r);
+/**
+ * THREADING FUNCTION
+ * Loops through file to check if all the values are the same
+ */
+void checkAll(void * arg){
+    puts("Control Thread created");
     fflush(stdout);
+    unsigned char c0, c1;
 
-    FILE *fp = fopen(FILENAME, "r+b");
+    fflush(stdout);
+    while(END) {
+        int dif = 1;
 
-    //row
-    for(int i = r * MATRIX; i < r * MATRIX + MATRIX; i++)
-    {
-        pthread_mutex_lock(&mut);
-        int new = findVal(i);
-        fseek( fp, i, SEEK_SET );
-        fputc((unsigned char) new, fp);
-        pthread_mutex_unlock(&mut);
+        FILE *fp;
+        fp = fopen(FILENAME, "r+b");
+
+        fseek(fp, 0, SEEK_SET);
+        c0 = fgetc(fp);
+
+        for (int i = 0; i < MATRIX * MATRIX; i++) {
+            fseek(fp, i, SEEK_SET);
+            c1 = fgetc(fp);
+            if (c0 != c1){
+                dif = 0;
+                break;
+            }
+        }
+
+        if (dif){
+            fclose(fp);
+            END = 0;
+            break;
+        }
+        if (fp != NULL) {
+            fclose(fp);
+        }
     }
-
-    //column
-    for(int i = 0; i < MATRIX; i++)
-    {
-        pthread_mutex_lock(&mut);
-        int new = findVal(i * MATRIX + r);
-        fseek( fp, i * MATRIX + r, SEEK_SET );
-        fputc((unsigned char) new, fp);
-        pthread_mutex_unlock(&mut);
-    }
-    fclose(fp);
-
-    pthread_mutex_lock(&pmut);
-    printf("Thread [%d] before finishing\n",ThreadID);
-    printMatrix();
-    pthread_mutex_unlock(&pmut);
-
 
     pthread_exit(NULL);
 }
 
+/**
+ * //THREADING FUNCTION
+ * Generates a random location and changes the value based on neighbors
+ * @param arg: the assigned thread number
+ */
+void *setVal(void * arg)
+{
+    int ThreadID = (int) arg;
+    while(END) {
+        int row = genrand_int32() % MATRIX;
+        int col = genrand_int32() % MATRIX;
+        int loc = row * MATRIX + col;
 
+        FILE *fp = fopen(FILENAME, "r+b");
+
+        pthread_mutex_lock(&mut);
+        int new = findVal(row, col);
+        fseek(fp, loc, SEEK_SET);
+        fputc((unsigned char) new, fp);
+        fflush(fp);
+
+        printf("Thread [%d] assigned row %d column %d: \n", ThreadID, row, col);
+        printMatrix();
+        fflush(stdout);
+
+        pthread_mutex_unlock(&mut);
+
+        if (fp != NULL) {
+            fclose(fp);
+        }
+    }
+
+    puts("Leaving Thread");
+    pthread_exit(NULL);
+}
+
+
+/**
+ * Gets user input, creates matrix file, creates threads, joins threads;
+ */
 int main (int argc, char** argv) {
-    pid_t pid;
-    struct flock lock;
-    int fd;
-
-    fd = open (FILENAME, O_WRONLY);
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = F_WRLCK;
-    fcntl(fd, F_SETLKW, &lock);
-
-    srand(time(NULL));
+    init_genrand(time(NULL));
 
     puts("Enter the size of the matrix:");
     MATRIX = getInput();
@@ -179,44 +215,24 @@ int main (int argc, char** argv) {
     int threads = getInput();
 
     pthread_t threads1[threads];
+    pthread_t endCondition;
 
+    printf("Creating File %s\n", FILENAME);
     createFile();
+    puts("Starting Matrix:");
     printMatrix();
 
-    while (1) {
-        pid = fork();
+    pthread_create(&endCondition, NULL, checkAll,(void *) 0);
 
-        if (pid == 0){
-            int status = checkAll();
-            if (status){
-                printf("Ending condition met, locking file\n");
-                fcntl (fd, F_SETLKW, &lock);
-            }
-
-            return status;
-
-        }else if (pid < 0){
-            printf("Error forking process");
-            return 1;
-        }else {
-
-            int status = 0;
-            wait(&status);
-            status = status>>8;
-
-            if (status){
-                break;
-            }
-
-            for (int i = 0; i < threads; i++) {
-                pthread_create(&threads1[i], NULL, setRow, (void *) i);
-            }
-
-            for (int i = 0; i < threads; i++) {
-                pthread_join(threads1[i], NULL);
-            }
-        }
+    for (int i = 0; i < threads; i++) {
+        pthread_create(&threads1[i], NULL, setVal, (void *) i + 1);
     }
-    close(fd);
+
+    for (int i = 0; i < threads; i++) {
+        pthread_join(threads1[i], NULL);
+    }
+
+    pthread_join(endCondition, NULL);
+
     return 0;
 }
