@@ -11,9 +11,17 @@
 #include <math.h>
 #include <values.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 long int MAX = LONG_MAX;
 long int MIN = 36028797018963967;
+
+struct output {
+    uint64_t * sendBuff;
+    int connfd;
+    int factor;
+
+};
 
 int isValid(long int num, int base) {
     do  {
@@ -42,27 +50,53 @@ long int genNum(int base){
 
     return num;
 }
+/*
+void * sendFactor(void * arg){
+    struct output * out = (struct output *)arg;
+    int recBuff[1], n;
+    memset(recBuff,0, sizeof(recBuff));
+
+    out->sendBuff[2] = out->factor;
+
+    printf("%" PRIu64 "\n", out->sendBuff[0]);
+    printf("%" PRIu64 "\n",  out->sendBuff[1]);
+    printf("%" PRIu64 "\n",  out->sendBuff[2]);
+
+    write(out->connfd, out->sendBuff, 3 * sizeof(uint64_t));
+
+    n = recv(out->connfd, recBuff, sizeof(recBuff), 0);
+
+    printf("Factor %d appears %d times\n", out->factor, recBuff[0]);
+
+    return (void *)recBuff[0];
+}
+*/
+struct output * initOutput(){
+
+    struct output * out = malloc(sizeof(struct output));
+    out ->sendBuff = malloc(3 * sizeof(uint64_t));
+
+
+    int base = (rand() % (10 - 1)) + 2;
+
+    out->sendBuff[0] = genNum(base);
+    out->sendBuff[1] = base;
+
+    return out;
+}
 
 int main(int argc, char *argv[])
 {
     srand(time(NULL));
-    int base = (rand() % (10 - 1)) + 2;
-    uint64_t sendBuff[3];
-    memset(sendBuff,(uint64_t )0, sizeof(sendBuff));
-    sendBuff[0] = genNum(base);
-    sendBuff[1] = base;
 
-    int recBuff[1];
-    memset(recBuff,0, sizeof(recBuff));
+    struct output * out = initOutput();
+    printf("%" PRIu64 "\n", out->sendBuff[0]);
+    printf("%" PRIu64 "\n", out->sendBuff[1]);
 
-    printf("%" PRIu64 "\n", sendBuff[0]);
-    printf("%" PRIu64 "\n", sendBuff[1]);
 
-    int listenfd = 0, connfd = 0;
+
+    int listenfd = 0;
     struct sockaddr_in serv_addr;
-
-
-    time_t ticks;
 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&serv_addr, '0', sizeof(serv_addr));
@@ -77,17 +111,36 @@ int main(int argc, char *argv[])
     listen(listenfd, 10);
 
     int n = 0;
+
+    pthread_t threads1[16];
+
+    char printBuff[1024];
+    sprintf(printBuff, "Prime Factorization: ");
     for(int i = 2; i < 18; i ++){
-        connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
 
-        sendBuff[2] = i;
-        write(connfd, sendBuff, 3 * sizeof(uint64_t));
+        out->connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+        out->factor = i;
 
-        n = recv(connfd, recBuff, sizeof(recBuff), 0);
+        int exp = 0;
+       // pthread_create(&threads1[i], NULL, sendFactor, (void *)out);
+        printf("exp: %d\n", exp);
 
-        printf("Factor %d appears %d times\n", i, recBuff[0]);
-        close(connfd);
+        int recBuff[1];
+        memset(recBuff,0, sizeof(recBuff));
+        out->sendBuff[2] = out->factor;
+        write(out->connfd, out->sendBuff, 3 * sizeof(uint64_t));
+
+        n = recv(out->connfd, recBuff, sizeof(recBuff), 0);
+
+        printf("Factor %d appears %d times\n", out->factor, recBuff[0]);
+
+        if(recBuff[0] > 0) {
+            sprintf(printBuff + strlen(printBuff), " %d^%d,", out->factor, recBuff[0]);
+        }
+        close(out->connfd);
         sleep(1);
     }
+
+    printf("%s\n", printBuff);
 
 }
