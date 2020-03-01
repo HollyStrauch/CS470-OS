@@ -15,6 +15,8 @@
 
 long int MAX = LONG_MAX;
 long int MIN = 36028797018963967;
+int PORT = 5437;
+int n = 10;
 
 struct output {
     uint64_t * sendBuff;
@@ -64,7 +66,6 @@ void *sendFactor(void *arg){
 
     n = recv(sock, recBuff, sizeof(recBuff), 0);
 
-    printf("Factor %d appears %d times\n", out->factor, recBuff[0]);
     close(out->connfd);
 
     return recBuff[0];
@@ -84,6 +85,8 @@ struct output * initOutput(){
     out->sendBuff[0] = genNum(base);
     out->sendBuff[1] = base;
 
+    printf("%" PRIu64 "\n", out->sendBuff[0]);
+    printf("%" PRIu64 "\n", out->sendBuff[1]);
     out->connfd = 0;
 
     return out;
@@ -95,10 +98,6 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
     struct output * out = initOutput();
-    printf("%" PRIu64 "\n", out->sendBuff[0]);
-    printf("%" PRIu64 "\n", out->sendBuff[1]);
-
-
 
     int listenfd = 0;
     struct sockaddr_in serv_addr;
@@ -106,45 +105,43 @@ int main(int argc, char *argv[])
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&serv_addr, '0', sizeof(serv_addr));
 
-
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(5437);
+    serv_addr.sin_port = htons(PORT);
 
     bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
 
     listen(listenfd, 10);
 
-    int n = 0;
-
     pthread_t threads[16];
 
-    for(int i = 2; i < 6; i ++){
+    FILE * fp = fopen("primes.txt", "r");
+    char prime[255];
+    int factors[n];
+    memset(&factors, 0, sizeof(factors));
 
-        puts("waiting to accept");
+    for(int i = 0; i < n; i ++){
+        int p = atoi(fgets(prime, 255, fp));
+        factors[i] = p;
+
+        puts("Listening for client");
         out->connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-        out->factor = i;
-
-        printf("connfd init: %d\n", out->connfd);
+        out->factor = p;
 
         pthread_create(&threads[i], NULL, sendFactor, (void *) out);
-
-        sleep(1);
     }
 
     void* exp[16];
-
     char printBuff[1024];
-    sprintf(printBuff, "Prime Factorization: ");
-    for(int i = 2; i < 6; i ++) {
+    sprintf(printBuff, "\nPrime Factorization: ");
+
+    for(int i = 0; i < n; i ++) {
         pthread_join(threads[i], &exp[i]);
 
-        printf(" %d^%d,", i, (int)exp[i]);
         if (exp[i] > 0) {
-            sprintf(printBuff + strlen(printBuff), " %d^%d,", i, (int)exp[i]);
+            sprintf(printBuff + strlen(printBuff), " %d^%d, ", factors[i], (int)exp[i]);
         }
     }
-
 
     printf("%s\n", printBuff);
 
