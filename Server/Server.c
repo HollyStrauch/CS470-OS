@@ -50,40 +50,45 @@ long int genNum(int base){
 
     return num;
 }
-/*
-void * sendFactor(void * arg){
-    struct output * out = (struct output *)arg;
+
+void *sendFactor(void *arg){
+    struct  output* out = (struct output *)arg;
     int recBuff[1], n;
+    int sock = out->connfd;
     memset(recBuff,0, sizeof(recBuff));
 
-    out->sendBuff[2] = out->factor;
+    out->sendBuff[2] = (uint64_t )out->factor;
 
-    printf("%" PRIu64 "\n", out->sendBuff[0]);
-    printf("%" PRIu64 "\n",  out->sendBuff[1]);
-    printf("%" PRIu64 "\n",  out->sendBuff[2]);
 
     write(out->connfd, out->sendBuff, 3 * sizeof(uint64_t));
 
-    n = recv(out->connfd, recBuff, sizeof(recBuff), 0);
+    n = recv(sock, recBuff, sizeof(recBuff), 0);
 
     printf("Factor %d appears %d times\n", out->factor, recBuff[0]);
+    close(out->connfd);
 
-    return (void *)recBuff[0];
+    return recBuff[0];
 }
-*/
+
 struct output * initOutput(){
 
     struct output * out = malloc(sizeof(struct output));
-    out ->sendBuff = malloc(3 * sizeof(uint64_t));
+    out->sendBuff = malloc(3 * sizeof(uint64_t));
+    out->factor= 1;
 
 
     int base = (rand() % (10 - 1)) + 2;
 
+    printf("base %d\n", base);
+
     out->sendBuff[0] = genNum(base);
     out->sendBuff[1] = base;
 
+    out->connfd = 0;
+
     return out;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -112,34 +117,34 @@ int main(int argc, char *argv[])
 
     int n = 0;
 
-    pthread_t threads1[16];
+    pthread_t threads[16];
 
-    char printBuff[1024];
-    sprintf(printBuff, "Prime Factorization: ");
-    for(int i = 2; i < 18; i ++){
+    for(int i = 2; i < 6; i ++){
 
+        puts("waiting to accept");
         out->connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
         out->factor = i;
 
-        int exp = 0;
-       // pthread_create(&threads1[i], NULL, sendFactor, (void *)out);
-        printf("exp: %d\n", exp);
+        printf("connfd init: %d\n", out->connfd);
 
-        int recBuff[1];
-        memset(recBuff,0, sizeof(recBuff));
-        out->sendBuff[2] = out->factor;
-        write(out->connfd, out->sendBuff, 3 * sizeof(uint64_t));
+        pthread_create(&threads[i], NULL, sendFactor, (void *) out);
 
-        n = recv(out->connfd, recBuff, sizeof(recBuff), 0);
-
-        printf("Factor %d appears %d times\n", out->factor, recBuff[0]);
-
-        if(recBuff[0] > 0) {
-            sprintf(printBuff + strlen(printBuff), " %d^%d,", out->factor, recBuff[0]);
-        }
-        close(out->connfd);
         sleep(1);
     }
+
+    void* exp[16];
+
+    char printBuff[1024];
+    sprintf(printBuff, "Prime Factorization: ");
+    for(int i = 2; i < 6; i ++) {
+        pthread_join(threads[i], &exp[i]);
+
+        printf(" %d^%d,", i, (int)exp[i]);
+        if (exp[i] > 0) {
+            sprintf(printBuff + strlen(printBuff), " %d^%d,", i, (int)exp[i]);
+        }
+    }
+
 
     printf("%s\n", printBuff);
 
