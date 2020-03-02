@@ -13,8 +13,6 @@
 #include <inttypes.h>
 #include <pthread.h>
 
-long int MAX = LONG_MAX;
-long int MIN = 36028797018963967;
 int PORT = 5437;
 int n = 10;
 
@@ -25,32 +23,18 @@ struct output {
 
 };
 
-int isValid(long int num, int base) {
-    do  {
-        int digit = num % 10;
-        if (digit >= base) {
-            return 1;
-        }
-        num /= 10;
-    } while (num > 0);
 
-    return 0;
+long int generate(int base){
+    char num[18];
+    char *eptr;
+    memset(num, '0', sizeof(num));
 
-}
+    for(int i = 0; i < 18; i++){
+        num[i] = (char) (rand() % (base) + 48);
+    }
 
-long int genNum(int base){
-
-    long int DIF = MAX - MIN;
-    long int num = 0;
-
-
-    do {
-        double r = (double)rand()/(double)RAND_MAX;
-
-        num = (long int) (r * (double) DIF + MIN);
-    }while(isValid(num, base));
-
-    return num;
+    long int val = strtol(num, &eptr, 10);
+    return val;
 }
 
 void *sendFactor(void *arg){
@@ -82,7 +66,7 @@ struct output * initOutput(){
 
     printf("base %d\n", base);
 
-    out->sendBuff[0] = genNum(base);
+    out->sendBuff[0] = generate(base);
     out->sendBuff[1] = base;
 
     printf("%" PRIu64 "\n", out->sendBuff[0]);
@@ -144,5 +128,4 @@ int main(int argc, char *argv[])
     }
 
     printf("%s\n", printBuff);
-
 }
