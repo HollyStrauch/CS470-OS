@@ -15,16 +15,14 @@
 
 int PORT = 5437;
 int n = 10;
-
-struct output {
-    uint64_t * sendBuff;
-    int connfd;
-    int factor;
-
-};
+char * printBuff;
+uint64_t bigNum;
+uint64_t base;
+uint64_t factor = 2;
+pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
 
-long int generate(int base){
+long int generate(){
     char num[18];
     char *eptr;
     memset(num, '0', sizeof(num));
@@ -38,42 +36,54 @@ long int generate(int base){
 }
 
 void *sendFactor(void *arg){
-    struct  output* out = (struct output *)arg;
+    puts("in string");
+    int connfd = (int)arg;
+    printf("connfd %d\n", connfd);
+
     int recBuff[1], n;
-    int sock = out->connfd;
     memset(recBuff,0, sizeof(recBuff));
 
-    out->sendBuff[2] = (uint64_t )out->factor;
+    uint64_t * sendBuff = malloc(3 * sizeof(uint64_t));
 
+    while(1) {
+        pthread_mutex_lock(&mut);
+        sendBuff[0] = bigNum;
+        sendBuff[1] = base;
+        sendBuff[2] = factor;
 
-    write(out->connfd, out->sendBuff, 3 * sizeof(uint64_t));
+        printf("Value: %" PRIu64 "\n", sendBuff[0]);
+        printf("Base: %" PRIu64 "\n", sendBuff[1]);
+        printf("Prime Factor: %" PRIu64 "\n", sendBuff[2]);
 
-    n = recv(sock, recBuff, sizeof(recBuff), 0);
+        if(write(connfd, sendBuff, 3 * sizeof(uint64_t)) < 1){
+            printf("Could not write to client, disconnecting");
+            break;
+        }
 
-    close(out->connfd);
+        if(recv(connfd, recBuff, sizeof(recBuff), 0) < 1){
+            printf("Client disconnected, exiting thread.");
+            break;
+        }
 
-    return recBuff[0];
+        if(recBuff[0] > 0) {
+            sprintf(printBuff + strlen(printBuff), " %ld^%d, ", factor, recBuff[0]);
+        }
+        factor++;
+        pthread_mutex_unlock(&mut);
+    }
+
+    close(connfd);
+
 }
 
-struct output * initOutput(){
+void initOutput(){
 
-    struct output * out = malloc(sizeof(struct output));
-    out->sendBuff = malloc(3 * sizeof(uint64_t));
-    out->factor= 1;
+    base = (rand() % (10 - 1)) + 2;
+    bigNum = (uint64_t )generate();
 
+    printf("bigNum %" PRIu64 "\n", bigNum);
+    printf("base %" PRIu64 "\n", base);
 
-    int base = (rand() % (10 - 1)) + 2;
-
-    printf("base %d\n", base);
-
-    out->sendBuff[0] = generate(base);
-    out->sendBuff[1] = base;
-
-    printf("%" PRIu64 "\n", out->sendBuff[0]);
-    printf("%" PRIu64 "\n", out->sendBuff[1]);
-    out->connfd = 0;
-
-    return out;
 }
 
 
@@ -81,7 +91,7 @@ int main(int argc, char *argv[])
 {
     srand(time(NULL));
 
-    struct output * out = initOutput();
+
 
     int listenfd = 0;
     struct sockaddr_in serv_addr;
@@ -104,28 +114,33 @@ int main(int argc, char *argv[])
     int factors[n];
     memset(&factors, 0, sizeof(factors));
 
+
     for(int i = 0; i < n; i ++){
-        int p = atoi(fgets(prime, 255, fp));
-        factors[i] = p;
+        initOutput();
+        printBuff = malloc(1024 * sizeof(char));
 
-        puts("Listening for client");
-        out->connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-        out->factor = p;
+        while(1) {
+            puts("Listening for client");
+            int connfd = accept(listenfd, (struct sockaddr *) NULL, NULL);
 
-        pthread_create(&threads[i], NULL, sendFactor, (void *) out);
-    }
+            if (connfd < 1){
+                break;
+            }
 
-    void* exp[16];
-    char printBuff[1024];
-    sprintf(printBuff, "\nPrime Factorization: ");
-
-    for(int i = 0; i < n; i ++) {
-        pthread_join(threads[i], &exp[i]);
-
-        if (exp[i] > 0) {
-            sprintf(printBuff + strlen(printBuff), " %d^%d, ", factors[i], (int)exp[i]);
+            pthread_create(&threads[i], NULL, sendFactor, (void *) connfd);
         }
+
+        void* exp[16];
+        char printBuff[1024];
+        sprintf(printBuff, "\nPrime Factorization: ");
+
+        for(int i = 0; i < n; i ++) {
+            pthread_join(threads[i], NULL);
+        }
+
+        printf("%s\n", printBuff);
+        free(printBuff);
     }
 
-    printf("%s\n", printBuff);
+
 }

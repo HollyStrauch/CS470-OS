@@ -182,30 +182,30 @@ int main(int argc, char *argv[])
         sleep(1);
     }
 
-    num = recv(sockfd, recvBuff, sizeof(recvBuff), 0);
+    while(1) {
+        num = recv(sockfd, recvBuff, sizeof(recvBuff), 0);
 
-    if(num < 0)
-    {
-        printf("\n Read error \n");
-    }else{
-        printf("Value: %" PRIu64 "\n", recvBuff[0]);
-        printf("Base: %" PRIu64 "\n", recvBuff[1]);
-        printf("Prime Factor: %" PRIu64 "\n", recvBuff[2]);
+        if (num < 0) {
+            printf("\n Read error \n");
+        } else {
+            printf("Value: %" PRIu64 "\n", recvBuff[0]);
+            printf("Base: %" PRIu64 "\n", recvBuff[1]);
+            printf("Prime Factor: %" PRIu64 "\n", recvBuff[2]);
 
-        if(recvBuff[2] < 2){
-            puts("Error receiving data");
-            return 1;
+            if (recvBuff[2] < 2) {
+                puts("Error receiving data");
+                return 1;
+            }
+
+            uint64_t num = baseToDec(recvBuff[0], (int) recvBuff[1]);
+            printf("Dec: %" PRIu64 "\n", num);
+            int factors = numFactor(num, (int) recvBuff[2]);
+            printf("Exponent: %d\n", factors);
+            sendBuff[0] = factors;
+
+            write(sockfd, sendBuff, sizeof(sendBuff));
         }
-
-        uint64_t num = baseToDec(recvBuff[0], (int)recvBuff[1]);
-        printf("Dec: %" PRIu64 "\n", num);
-        int factors = numFactor(num, (int)recvBuff[2]);
-        printf("Exponent: %d\n", factors);
-        sendBuff[0] = factors;
-
-        write(sockfd, sendBuff, sizeof(sendBuff));
     }
-
     close(sockfd);
 
     return 0;
