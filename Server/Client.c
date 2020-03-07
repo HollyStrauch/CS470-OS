@@ -144,11 +144,11 @@ int main(int argc, char *argv[])
     int sockfd = 0, num = 0;
     struct sockaddr_in serv_addr;
 
-    uint64_t recvBuff[3];
+    uint64_t recvBuff[5];
     memset(recvBuff, (uint64_t )0,sizeof(recvBuff));
 
-    int sendBuff[1];
-    memset(sendBuff, 0, sizeof(int));
+    uint64_t sendBuff[2];
+    memset(sendBuff, 0, 2 * sizeof(int));
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -188,9 +188,11 @@ int main(int argc, char *argv[])
         if (num < 0) {
             printf("\n Read error \n");
         } else {
-            printf("Value: %" PRIu64 "\n", recvBuff[0]);
-            printf("Base: %" PRIu64 "\n", recvBuff[1]);
-            printf("Prime Factor: %" PRIu64 "\n", recvBuff[2]);
+            if(recvBuff[0] != 1) {
+                printf("Value: %" PRIu64 "\n", recvBuff[3]);
+                printf("Base: %" PRIu64 "\n", recvBuff[4]);
+                printf("Factor: %" PRIu64 "\n", recvBuff[2]);
+            }
 
             if (recvBuff[2] < 2) {
                 puts("Error receiving data");
@@ -198,12 +200,19 @@ int main(int argc, char *argv[])
             }
 
             uint64_t num = baseToDec(recvBuff[0], (int) recvBuff[1]);
-            printf("Dec: %" PRIu64 "\n", num);
-            int factors = numFactor(num, (int) recvBuff[2]);
-            printf("Exponent: %d\n", factors);
-            sendBuff[0] = factors;
 
-            write(sockfd, sendBuff, sizeof(sendBuff));
+            int factors = numFactor(num, (int) recvBuff[2]);
+            if(recvBuff[0] != 1) {
+                printf("Exponent: %d\n\n", factors);
+            }
+
+            sendBuff[0] = factors;
+            sendBuff[1] = num;
+
+            if(write(sockfd, sendBuff, sizeof(sendBuff)) < 1){
+                puts("Server closed, exiting client");
+                break;
+            }
         }
     }
     close(sockfd);
